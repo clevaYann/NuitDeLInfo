@@ -96,8 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(trim($_POST['user-input'])))
         }
         /* Style pour les messages de l'utilisateur */
         .user-message {
-            background-color: #93c5fd; /* bg-blue-300 */
-            color: #1e3a8a; /* text-blue-900 */
+            background-color: #C71E1E;
+            color: #F8F8F8;
             border-radius: 1.5rem 1.5rem 0.5rem 1.5rem; /* rounded-3xl rounded-tr-lg */
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
         }
@@ -118,11 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(trim($_POST['user-input'])))
         
         <!-- En-tête du Chatbot : L'identité du Chat'bruti -->
         <header class="bg-red-700 text-white p-4 rounded-t-xl shadow-md flex items-center">
-            <div class="text-3xl mr-3" aria-hidden="true">🧠</div>
+            <img src="assets/Brutus.png"></img>
             <div>
                 <h1 class="text-2xl font-bold">Brutus, le Chat'bruti</h1>
                 <p class="text-sm opacity-90 italic">
-                    "Je ne réponds pas. Je transcende." - B.
+                    "Je ne réponds pas. Je transcende." - Brutus
                 </p>
             </div>
         </header>
