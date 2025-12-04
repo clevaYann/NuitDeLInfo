@@ -4,7 +4,38 @@ session_start();
 // --- CONFIGURATION ---
 // IMPORTANT : Ne jamais exposer votre clé API dans le code source public.
 // Idéalement, utilisez des variables d'environnement.
-$apiKey = "votre cleAPI"; // 👈 INSCRIRE VOTRE CLÉ API GEMINI ICI
+// Chargement simple d'un fichier `.env` local si présent (copiez `.env.example` en `.env`).
+function load_dotenv($path)
+{
+    if (!is_readable($path)) {
+        return;
+    }
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        if (strpos($line, '=') === false) continue;
+        list($name, $value) = array_map('trim', explode('=', $line, 2));
+        if ($name === '') continue;
+        if ((getenv($name) === false) && !isset($_ENV[$name])) {
+            $value = trim($value, "\"'");
+            putenv("$name=$value");
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
+        }
+    }
+}
+
+// Charger .env local (non commité)
+load_dotenv(__DIR__ . '/.env');
+
+// Récupérer la clé depuis la variable d'environnement
+$apiKey = getenv('GEMINI_API_KEY') ?: null;
+if (empty($apiKey)) {
+    // La clé n'est pas définie — on laisse $apiKey vide. L'appel à l'API échouera.
+    // Vous pouvez aussi arrêter l'exécution ici ou afficher une alerte dans l'UI.
+    $apiKey = '';
+}
 $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
 
 // Instruction système pour définir la personnalité de Brutus
