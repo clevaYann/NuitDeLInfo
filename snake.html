@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Snake — 17x17</title>
+<style>
+  :root{
+    --cell-size: 30px; /* modifie si tu veux un plateau plus grand/petit */
+    --grid-size: 17;
+    --board-size: calc(var(--cell-size) * var(--grid-size));
+  }
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:16px;
+    padding:24px;
+    background: linear-gradient(180deg,#0f172a,#071330);
+    color:#e6eef8;
+    min-height:100vh;
+    box-sizing:border-box;
+  }
+  h1{margin:0 0 8px 0; font-size:20px;}
+  .container{
+    display:flex;
+    gap:20px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  #game-area{
+    background: #071224;
+    padding:8px;
+    border-radius:8px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  canvas{
+    background: linear-gradient(180deg,#081426,#042034);
+    display:block;
+    width:var(--board-size);
+    height:var(--board-size);
+    image-rendering: pixelated;
+    border-radius:6px;
+  }
+  .panel{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-width:220px;
+    padding:12px;
+    background: rgba(255,255,255,0.03);
+    border-radius:8px;
+  }
+  label{font-size:13px;}
+  .controls{display:flex; gap:8px; flex-wrap:wrap;}
+  button{
+    background:#0ea5a1;
+    color:#042022;
+    border:none;
+    padding:8px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  button.secondary{
+    background:#94a3b8;
+    color:#071133;
+  }
+  button:disabled{opacity:0.45; cursor:not-allowed;}
+  .stat{font-size:13px;}
+  .notice{
+    padding:8px;
+    border-radius:6px;
+    background: rgba(0,0,0,0.25);
+    font-size:13px;
+  }
+  .kbd{
+    background:#0b1220;
+    padding:6px 8px;
+    border-radius:6px;
+    display:inline-block;
+    font-weight:700;
+    color:#9ccbd3;
+    font-family:monospace;
+    font-size:13px;
+  }
+  footer{font-size:12px; opacity:0.8; margin-top:6px;}
+  @media(max-width:640px){
+    .container{flex-direction:column; align-items:center;}
+  }
+</style>
+</head>
+<body>
+  <h1>Snake — Plateau 17×17</h1>
+  <div class="container">
+    <div id="game-area">
+      <canvas id="board" width="510" height="510" aria-label="Plateau du jeu Snake"></canvas>
+    </div>
+
+    <div class="panel" aria-live="polite">
+      <div>
+        <label for="colorPicker">Couleur du serpent (avant de démarrer)</label><br>
+        <input id="colorPicker" type="color" value="#00ff66">
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">Démarrer</button>
+        <button id="pauseBtn" class="secondary" disabled>Pause</button>
+        <button id="resetBtn" class="secondary">Réinitialiser</button>
+      </div>
+
+      <div class="stat">Pommes mangées : <span id="score">0</span></div>
+      <div class="stat">Longueur serpent : <span id="length">4</span></div>
+      <div class="stat">Meilleur score : <span id="best">0</span></div>
+
+      <div class="notice">
+        Contrôles : <span class="kbd">↑↓←→</span> ou <span class="kbd">Z Q S D</span><br>
+        Le serpent meurt en touchant un mur ou son propre corps.
+      </div>
+    </div>
+  </div>
+
+  <footer id="msg" style="color:#ffefc2;"></footer>
+
+<script>
+(() => {
+  const GRID = 17;
+  const CELL = 30; // must match CSS var --cell-size
+  const WIDTH = GRID;
+  const HEIGHT = GRID;
+  const CANVAS = document.getElementById('board');
+  const ctx = CANVAS.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const colorPicker = document.getElementById('colorPicker');
+  const scoreEl = document.getElementById('score');
+  const lengthEl = document.getElementById('length');
+  const bestEl = document.getElementById('best');
+  const msgEl = document.getElementById('msg');
+
+  const TOTAL_CELLS = GRID * GRID;
+  const INITIAL_LENGTH = 4;
+  const TICK_MS = 140; // speed — ajustable
+
+  // game state
+  let snake = []; // array of {x,y}, head is last element
+  let dir = {x:1, y:0}; // initial direction: right
+  let nextDir = null; // queued direction
+  let apple = null;
+  let running = false;
+  let paused = false;
+  let tickTimer = null;
+  let snakeColor = colorPicker.value;
+  let applesEaten = 0;
+  let best = Number(localStorage.getItem('snake_best_17x17') || '0');
+
+  bestEl.textContent = best;
+
+  // Utility
+  function eq(a,b){ return a.x===b.x && a.y===b.y; }
+  function inBounds(p){ return p.x >= 0 && p.x < WIDTH && p.y >= 0 && p.y < HEIGHT; }
+
+  // Initialize or reset game state
+  function initGame(){
+    // center horizontally, place snake of length INITIAL_LENGTH going right
+    snake = [];
+    const centerY = Math.floor(HEIGHT/2);
+    const startX = Math.floor((WIDTH - INITIAL_LENGTH) / 2); // leftmost x of initial snake
+    for(let i=0;i<INITIAL_LENGTH;i++){
+      snake.push({x: startX + i, y: centerY});
+    }
+    dir = {x:1, y:0};
+    nextDir = null;
+    applesEaten = 0;
+    updateUI();
+    placeApple();
+    running = false;
+    paused = false;
+    clearInterval(tickTimer);
+    tickTimer = null;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    colorPicker.disabled = false;
+    msgEl.textContent = '';
+    draw();
+  }
+
+  function placeApple(){
+    // random empty cell not on snake
+    if (snake.length >= TOTAL_CELLS) { apple = null; return; } // full board
+    const occupied = new Set(snake.map(p => `${p.x},${p.y}`));
+    let emptyCount = TOTAL_CELLS - snake.length;
+    // random selection among empties
+    let choice = Math.floor(Math.random() * emptyCount);
+    let idx = 0;
+    for (let y = 0; y < HEIGHT; y++){
+      for (let x = 0; x < WIDTH; x++){
+        if (!occupied.has(`${x},${y}`)){
+          if (idx === choice){
+            apple = {x,y};
+            return;
+          }
+          idx++;
+        }
+      }
+    }
+  }
+
+  function setDirection(dx,dy){
+    // prevent 180° turn
+    if (dx === -dir.x && dy === -dir.y) return;
+    // if player presses multiple quickly, queue
+    nextDir = {x:dx, y:dy};
+  }
+
+  function step(){
+    if (!running || paused) return;
+    // apply queued direction if any (but still avoid reversing)
+    if (nextDir){
+      if (!(nextDir.x === -dir.x && nextDir.y === -dir.y)){
+        dir = nextDir;
+      }
+      nextDir = null;
+    }
+    const head = snake[snake.length - 1];
+    const newHead = {x: head.x + dir.x, y: head.y + dir.y};
+
+    // Check wall collision
+    if (!inBounds(newHead)){
+      endGame(false);
+      return;
+    }
+    // Check self collision (note: tail will move unless we grow)
+    // If newHead matches any body cell, game over
+    for (let i=0;i<snake.length;i++){
+      if (eq(snake[i], newHead)){
+        endGame(false);
+        return;
+      }
+    }
+
+    // move
+    snake.push(newHead);
+
+    // check apple
+    if (apple && eq(newHead, apple)){
+      applesEaten++;
+      // do not remove tail (growth by 1)
+      // place another apple (unless full)
+      if (snake.length >= TOTAL_CELLS){
+        // full board; victory
+        apple = null;
+        updateUI();
+        endGame(true);
+        return;
+      }
+      placeApple();
+    } else {
+      // normal move: remove tail
+      snake.shift();
+    }
+
+    updateUI();
+    draw();
+
+    // Check victory (redundant if we check after eating, but safe)
+    if (snake.length >= TOTAL_CELLS){
+      endGame(true);
+    }
+  }
+
+  function updateUI(){
+    scoreEl.textContent = applesEaten;
+    lengthEl.textContent = snake.length;
+    bestEl.textContent = best;
+  }
+
+  function draw(){
+    // clear
+    ctx.clearRect(0,0,CANVAS.width,CANVAS.height);
+
+    // draw grid background subtle
+    ctx.fillStyle = '#071424';
+    ctx.fillRect(0,0,CANVAS.width,CANVAS.height);
+
+    // draw apples
+    if (apple){
+      drawCell(apple.x, apple.y, null, true);
+    }
+
+    // draw snake body
+    for (let i=0;i<snake.length;i++){
+      const p = snake[i];
+      const isHead = i === snake.length - 1;
+      drawCell(p.x, p.y, snakeColor, false, isHead, i);
+    }
+
+    // optional: draw grid lines (subtle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (let i=0;i<=GRID;i++){
+      // vertical
+      ctx.beginPath();
+      ctx.moveTo(i * CELL + 0.5, 0);
+      ctx.lineTo(i * CELL + 0.5, GRID * CELL);
+      ctx.stroke();
+      // horizontal
+      ctx.beginPath();
+      ctx.moveTo(0, i * CELL + 0.5);
+      ctx.lineTo(GRID * CELL, i * CELL + 0.5);
+      ctx.stroke();
+    }
+  }
+
+  function drawCell(x,y,color,isApple=false,isHead=false,index=0){
+    const px = x * CELL;
+    const py = y * CELL;
+    const pad = 3;
+    if (isApple){
+      // draw apple as red circle with highlight
+      const cx = px + CELL/2, cy = py + CELL/2, r = CELL*0.34;
+      ctx.fillStyle = '#ff4040';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath(); ctx.arc(cx - r*0.25, cy - r*0.35, r*0.22, 0, Math.PI*2); ctx.fill();
+      // stem
+      ctx.fillStyle = '#2b7a2b';
+      ctx.fillRect(cx + r*0.55, cy - r*0.85, CELL*0.08, CELL*0.22);
+      return;
+    }
+
+    // snake cell: body with rounded corners
+    // Slight gradient for depth
+    const grad = ctx.createLinearGradient(px, py, px+CELL, py+CELL);
+    grad.addColorStop(0, shadeColor(color, -10));
+    grad.addColorStop(1, shadeColor(color, 10));
+    ctx.fillStyle = grad;
+    // draw rounded rect
+    roundRect(ctx, px + pad, py + pad, CELL - pad*2, CELL - pad*2, 6);
+    ctx.fill();
+
+    if (isHead){
+      // small eye to show direction
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      const cx = px + CELL/2 + dir.x * CELL*0.12;
+      const cy = py + CELL/2 + dir.y * CELL*0.12;
+      ctx.beginPath();
+      ctx.arc(cx - 4, cy - 4, 4, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + 4, cy - 4, 4, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y, x+w,y+h, r);
+    ctx.arcTo(x+w,y+h, x,y+h, r);
+    ctx.arcTo(x,y+h, x,y, r);
+    ctx.arcTo(x,y, x+w,y, r);
+    ctx.closePath();
+  }
+
+  // small helper to darken/lighten hex color
+  function shadeColor(hex, percent) {
+    // hex like #rrggbb
+    let c = hex.replace('#','');
+    if (c.length === 3) c = c.split('').map(ch=>ch+ch).join('');
+    const num = parseInt(c,16);
+    let r = (num >> 16) + percent;
+    let g = ((num >> 8) & 0x00FF) + percent;
+    let b = (num & 0x0000FF) + percent;
+    r = Math.max(0, Math.min(255, r));
+    g = Math.max(0, Math.min(255, g));
+    b = Math.max(0, Math.min(255, b));
+    return '#' + ( (1<<24) + (r<<16) + (g<<8) + b ).toString(16).slice(1);
+  }
+
+  function startGame(){
+    if (running) return;
+    snakeColor = colorPicker.value;
+    colorPicker.disabled = true;
+    running = true;
+    paused = false;
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    pauseBtn.textContent = 'Pause';
+    // start tick
+    if (tickTimer) clearInterval(tickTimer);
+    tickTimer = setInterval(step, TICK_MS);
+    draw();
+  }
+
+  function togglePause(){
+    if (!running) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? 'Reprendre' : 'Pause';
+  }
+
+  function endGame(victory){
+    running = false;
+    paused = false;
+    clearInterval(tickTimer);
+    tickTimer = null;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    colorPicker.disabled = false;
+
+    const apples = applesEaten;
+    // update best
+    if (apples > best){
+      best = apples;
+      localStorage.setItem('snake_best_17x17', String(best));
+    }
+    updateUI();
+
+    if (victory){
+      msgEl.innerHTML = `<strong>Victoire !</strong> Vous avez rempli le plateau. Pommes mangées : ${apples}. Meilleur : ${best}.`;
+    } else {
+      msgEl.innerHTML = `<strong>Partie terminée.</strong> Pommes mangées : ${apples}. Meilleur : ${best}.`;
+    }
+    draw();
+  }
+
+  // Controls
+  window.addEventListener('keydown', (e) => {
+    const key = e.key;
+    if (key === 'ArrowUp' || key === 'Up' || key.toLowerCase() === 'z') { setDirection(0,-1); e.preventDefault(); }
+    else if (key === 'ArrowDown' || key === 'Down' || key.toLowerCase() === 's') { setDirection(0,1); e.preventDefault(); }
+    else if (key === 'ArrowLeft' || key === 'Left' || key.toLowerCase() === 'q') { setDirection(-1,0); e.preventDefault(); }
+    else if (key === 'ArrowRight' || key === 'Right' || key.toLowerCase() === 'd') { setDirection(1,0); e.preventDefault(); }
+    else if (key === ' '){ // space to pause/resume
+      if (running) togglePause();
+      e.preventDefault();
+    }
+  });
+
+  // Buttons
+  startBtn.addEventListener('click', () => { startGame(); });
+  pauseBtn.addEventListener('click', () => { togglePause(); });
+  resetBtn.addEventListener('click', () => { initGame(); });
+
+  // Prevent color change during running — ensures "before start" only
+  colorPicker.addEventListener('input', (e) => {
+    if (running) {
+      // should not change in game; ignore
+      colorPicker.value = snakeColor;
+    } else {
+      snakeColor = colorPicker.value;
+      draw();
+    }
+  });
+
+  // Start initial
+  initGame();
+
+  // expose for debugging (optional)
+  window.__snake = {
+    start: startGame,
+    step,
+    reset: initGame,
+    state: () => ({snake, apple, dir, running, paused, applesEaten})
+  };
+})();
+</script>
+</body>
+</html>
