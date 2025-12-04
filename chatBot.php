@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(trim($_POST['user-input'])))
         </div>
 
         <!-- Zone de saisie et bouton d'envoi -->
-        <form method="POST" action="index.php" class="p-4 border-t border-gray-200">
+        <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" class="p-4 border-t border-gray-200">
             <div class="flex space-x-2">
                 <input type="text" name="user-input" id="user-input" placeholder="Demandez quelque chose d'important (il l'ignorera)"
                        class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-red-500 focus:border-red-500 transition duration-150" autofocus>
