@@ -1,0 +1,6 @@
+<?php
+// Copier ce fichier en "config.php" et insérez votre vraie clé API
+// Ne JAMAIS commiter config.php sur GitHub !
+
+define('GEMINI_API_KEY', 'YOUR_API_KEY_HERE');
+?>

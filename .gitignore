@@ -1,2 +1,15 @@
-# Ignore the config file containing the API key
-config.js
+# Fichier de configuration avec la clé API
+config.php
+config.local.php
+
+# Autres fichiers sensibles
+.env
+.env.local
+*.key
+*.pem
+
+# Dossiers système
+node_modules/
+vendor/
+.DS_Store
+Thumbs.db

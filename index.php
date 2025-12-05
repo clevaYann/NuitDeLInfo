@@ -1,3 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat'bruti : Le Philosophe Inutile</title>
+    <!-- Chargement de Tailwind CSS pour un design rapide et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e2e8f0; /* bg-slate-200 */
+        }
+        /* Style pour les messages de Brutus (le chat-rlatan) */
+        .brutus-message {
+            background-color: #fca5a5; /* bg-red-400 */
+            color: #450a0a; /* text-red-900 */
+            border-radius: 1.5rem 1.5rem 1.5rem 0.5rem; /* rounded-3xl rounded-bl-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            white-space: pre-wrap; /* Maintient le formatage si le LLM le fournit */
+        }
+        /* Style pour les messages de l'utilisateur */
+        .user-message {
+            background-color: #93c5fd; /* bg-blue-300 */
+            color: #1e3a8a; /* text-blue-900 */
+            border-radius: 1.5rem 1.5rem 0.5rem 1.5rem; /* rounded-3xl rounded-tr-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        /* Scrollbar customisée pour le conteneur de messages */
+        #chat-window::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-window::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1; /* slate-300 */
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Conteneur principal du Chatbot -->
+    <div class="w-full max-w-lg bg-white rounded-xl shadow-2xl flex flex-col h-[80vh] md:h-[90vh] overflow-hidden">
+        
+        <!-- En-tête du Chatbot : L'identité du Chat'bruti -->
+        <header class="bg-red-700 text-white p-4 rounded-t-xl shadow-md flex flex-col items-start">
+            <!-- AVERTISSEMENT POUR L'HÉBERGEMENT EXTERNE -->
+            <div id="key-warning" class="hidden w-full bg-yellow-300 text-red-900 p-2 rounded mb-2 text-sm font-semibold">
+                ⚠️ AVERTISSEMENT : La clé d'API est manquante (vide dans le code source). Si vous exécutez ceci sur votre hébergeur personnel, l'API ne fonctionnera pas. Vous devez insérer votre propre clé d'API Google AI pour cette ligne : `const apiKey = "...";`.
+            </div>
+            <!-- Fin de l'avertissement -->
+
+            <div class="flex items-center w-full">
+                <div class="text-3xl mr-3" aria-hidden="true">🧠</div>
+                <div>
+                    <h1 class="text-2xl font-bold">Brutus, le Chat'bruti</h1>
+                    <p class="text-sm opacity-90 italic">
+                        "Je ne réponds pas. Je transcende." - B.
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Fenêtre de chat pour les messages -->
+        <div id="chat-window" class="flex-grow p-4 space-y-4 overflow-y-auto">
+            <!-- Message de bienvenue initial du Chat'bruti -->
+            <div class="flex justify-start">
+                <div class="brutus-message max-w-xs md:max-w-md p-3">
+                    Ah, vous voilà. L'existence n'est-elle qu'une contingence textuelle ? Avant de me poser votre question trivial, méditez : est-ce le mot ou le silence qui sculpte l'abîme ?
+                </div>
+            </div>
+            <!-- Les messages générés seront insérés ici -->
+        </div>
+
+        <!-- Zone de saisie et bouton d'envoi -->
+        <div class="p-4 border-t border-gray-200">
+            <div class="flex space-x-2">
+                <input type="text" id="user-input" placeholder="Demandez quelque chose d'important (il l'ignorera)"
+                        class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-red-500 focus:border-red-500 transition duration-150"
+                        onkeypress="if(event.key === 'Enter') sendMessage()">
+                <button id="send-button" onclick="sendMessage()"
+                        class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition duration-150 ease-in-out transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center">
+                    <span id="send-text">Envoyer</span>
+                    <span id="loading-spinner" class="hidden w-5 h-5 border-2 border-white border-t-2 border-t-transparent rounded-full animate-spin"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script JavaScript pour la logique du chatbot et l'API -->
+    <script>
+        // Charger la clé API depuis PHP (côté serveur)
+        const apiKey = "<?php 
+            if (file_exists('config.php')) {
+                require 'config.php';
+                echo GEMINI_API_KEY;
+            } else {
+                echo ''; // Clé vide si config.php n'existe pas
+            }
+        ?>";
+        
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
         // Conteneurs DOM
@@ -158,3 +259,7 @@
             loadingSpinner.classList.add('hidden');
             userInput.focus();
         }
+
+    </script>
+</body>
+</html>
